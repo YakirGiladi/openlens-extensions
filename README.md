@@ -21,7 +21,7 @@ OpenLens doesn't support column resizing in resource tables out of the box. This
 
 ### Download
 
-**[Download column-resizer.tar.gz](https://drive.google.com/file/d/1YucRZmWM0ZsUz-r45-uC-Tof42fXB_1I/view?usp=sharing)**
+**[Download column-resizer.tar.gz](https://github.com/YakirGiladi/openlens-extensions/raw/main/column-resizer.tar.gz)**
 
 ### Installation
 
