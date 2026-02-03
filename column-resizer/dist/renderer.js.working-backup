@@ -1,0 +1,658 @@
+/******/ (() => { // webpackBootstrap
+/******/  "use strict";
+/******/  var __webpack_modules__ = ({
+
+/***/ 1:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const LensExtensions = __webpack_require__(2);
+
+class ColumnResizerExtension extends LensExtensions.Renderer.LensExtension {
+  constructor() {
+    super(...arguments);
+    this.observer = null;
+    this.resizeHandles = new Set();
+    this.styleElement = null;
+    this.dynamicStyleElement = null;
+    this.columnWidths = new Map();
+    this.isResizing = false;
+    this.debounceTimer = null;
+    this.resizeLine = null;
+    this.contextMenu = null;
+    this.STORAGE_KEY = 'openlens-column-widths-v2';
+    this.lastTableId = null;
+  }
+
+  onActivate() {
+    console.log("✓ Column Resizer Pro v2.1 - Optimized for large datasets!");
+
+    // AGGRESSIVE CLEANUP: Remove ALL old extension artifacts
+    document.querySelectorAll('.column-resizer').forEach(r => r.remove());
+    document.querySelectorAll('.column-resize-line').forEach(r => r.remove());
+    document.querySelectorAll('.column-width-tooltip').forEach(r => r.remove());
+    document.querySelectorAll('.column-resizer-menu').forEach(r => r.remove());
+    document.querySelectorAll('.column-resizer-context-menu').forEach(r => r.remove());
+    document.querySelectorAll('[data-resizer-applied]').forEach(el => delete el.dataset.resizerApplied);
+    document.querySelectorAll('[data-context-menu-added]').forEach(el => delete el.dataset.contextMenuAdded);
+    document.querySelectorAll('[data-col-resizer]').forEach(el => el.remove());
+    document.querySelectorAll('[data-has-resizer]').forEach(el => delete el.dataset.hasResizer);
+    document.getElementById('column-resizer-styles')?.remove();
+    document.getElementById('column-resizer-dynamic')?.remove();
+    document.body.classList.remove('column-resizing');
+    console.log("  Cleaned up old extension artifacts");
+
+    this.loadSavedWidths();
+    this.injectStyles();
+    this.createDynamicStyleSheet();
+    this.createResizeLine();
+    this.createContextMenu();
+    this.startObserving();
+
+    // Initial apply with small delay to ensure cleanup is complete
+    setTimeout(() => {
+      requestAnimationFrame(() => this.applyToAllTables());
+    }, 100);
+
+    // Re-apply on navigation (debounced)
+    let clickDebounce = null;
+    document.addEventListener('click', () => {
+      if (clickDebounce) clearTimeout(clickDebounce);
+      clickDebounce = setTimeout(() => {
+        requestAnimationFrame(() => this.applyToAllTables());
+      }, 200);
+    }, true);
+  }
+
+  onDeactivate() {
+    this.stopObserving();
+    this.cleanupHandles();
+    this.removeStyles();
+    this.removeResizeLine();
+    this.removeContextMenu();
+  }
+
+  // ============ PERSISTENCE ============
+  loadSavedWidths() {
+    try {
+      const saved = localStorage.getItem(this.STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        this.columnWidths = new Map(Object.entries(data));
+      }
+    } catch (e) {
+      console.warn("Column Resizer: Could not load saved widths", e);
+    }
+  }
+
+  saveWidths() {
+    try {
+      const data = Object.fromEntries(this.columnWidths);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.warn("Column Resizer: Could not save widths", e);
+    }
+  }
+
+  getColumnKey(tableId, columnIndex) {
+    return `${tableId}::col${columnIndex}`;
+  }
+
+  getTableId() {
+    const path = window.location.hash || window.location.pathname;
+    return path.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
+  // ============ DYNAMIC CSS (PERFORMANCE OPTIMIZATION) ============
+  createDynamicStyleSheet() {
+    this.dynamicStyleElement = document.createElement('style');
+    this.dynamicStyleElement.id = 'column-resizer-dynamic';
+    document.head.appendChild(this.dynamicStyleElement);
+  }
+
+  // Apply column widths via CSS rules instead of inline styles on every cell
+  applyColumnWidthsViaCSS(tableId) {
+    if (!this.dynamicStyleElement) return;
+
+    let css = '';
+    this.columnWidths.forEach((width, key) => {
+      if (key.startsWith(tableId + '::col')) {
+        const colIndex = parseInt(key.split('::col')[1], 10);
+        // Use nth-child to target all cells in this column position
+        css += `
+          .TableHead .TableCell:nth-child(${colIndex + 1}),
+          .TableRow .TableCell:nth-child(${colIndex + 1}) {
+            width: ${width}px !important;
+            min-width: ${width}px !important;
+            max-width: ${width}px !important;
+            flex: 0 0 ${width}px !important;
+          }
+        `;
+      }
+    });
+
+    this.dynamicStyleElement.textContent = css;
+  }
+
+  setColumnWidth(tableId, columnIndex, width) {
+    const key = this.getColumnKey(tableId, columnIndex);
+    this.columnWidths.set(key, width);
+    this.saveWidths();
+    this.applyColumnWidthsViaCSS(tableId);
+  }
+
+  removeColumnWidth(tableId, columnIndex) {
+    const key = this.getColumnKey(tableId, columnIndex);
+    this.columnWidths.delete(key);
+    this.saveWidths();
+    this.applyColumnWidthsViaCSS(tableId);
+  }
+
+  // ============ STATIC STYLES ============
+  injectStyles() {
+    this.styleElement = document.createElement('style');
+    this.styleElement.id = 'column-resizer-styles';
+    this.styleElement.textContent = `
+      .TableCell {
+        position: relative !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+      }
+
+      .TableCell > * {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+
+      /* Header separator lines */
+      .TableHead .TableCell {
+        border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+      }
+
+      .TableHead .TableCell:last-child {
+        border-right: none !important;
+      }
+
+      /* Resize handle - always visible indicator line */
+      .column-resizer {
+        position: absolute !important;
+        top: 0 !important;
+        right: -9px !important;
+        width: 12px !important;
+        height: 100% !important;
+        cursor: col-resize !important;
+        z-index: 10000 !important;
+        background: transparent !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Always visible subtle line in header */
+      .column-resizer::after {
+        content: '' !important;
+        position: absolute !important;
+        right: 0 !important;
+        top: 20% !important;
+        height: 60% !important;
+        width: 3px !important;
+        background: rgba(100, 150, 200, 0.4) !important;
+        border-radius: 2px !important;
+        transition: background 0.15s ease, height 0.15s ease, top 0.15s ease !important;
+      }
+
+      .column-resizer:hover::after {
+        background: rgba(74, 144, 226, 0.95) !important;
+        top: 0 !important;
+        height: 100% !important;
+      }
+
+      .column-resizer.resizing {
+        opacity: 1 !important;
+        background: rgba(74, 144, 226, 1) !important;
+      }
+
+      /* Resize line */
+      .column-resize-line {
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 2px !important;
+        background: rgba(74, 144, 226, 0.8) !important;
+        pointer-events: none !important;
+        z-index: 99999 !important;
+        display: none !important;
+        box-shadow: 0 0 6px rgba(74, 144, 226, 0.4) !important;
+      }
+
+      .column-resize-line.active {
+        display: block !important;
+      }
+
+      /* Width tooltip */
+      .column-width-tooltip {
+        position: fixed !important;
+        background: rgba(30, 30, 30, 0.95) !important;
+        color: #fff !important;
+        padding: 3px 7px !important;
+        border-radius: 3px !important;
+        font-size: 11px !important;
+        font-family: monospace !important;
+        pointer-events: none !important;
+        z-index: 100000 !important;
+        display: none !important;
+        border: 1px solid rgba(74, 144, 226, 0.4) !important;
+      }
+
+      .column-width-tooltip.active {
+        display: block !important;
+      }
+
+      /* Context menu */
+      .column-resizer-menu {
+        position: fixed !important;
+        background: #2a2a2a !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 5px !important;
+        padding: 4px 0 !important;
+        min-width: 160px !important;
+        z-index: 100001 !important;
+        display: none !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        font-size: 12px !important;
+      }
+
+      .column-resizer-menu.active {
+        display: block !important;
+      }
+
+      .column-resizer-menu-item {
+        padding: 6px 12px !important;
+        cursor: pointer !important;
+        color: #ccc !important;
+      }
+
+      .column-resizer-menu-item:hover {
+        background: rgba(74, 144, 226, 0.25) !important;
+        color: #fff !important;
+      }
+
+      .column-resizer-menu-sep {
+        height: 1px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        margin: 4px 0 !important;
+      }
+
+      /* Table layout */
+      .VirtualList {
+        overflow-x: auto !important;
+      }
+
+      .Table {
+        overflow-x: visible !important;
+      }
+
+      .TableHead,
+      .TableRow {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+      }
+
+      /* Resizing state */
+      body.column-resizing * {
+        cursor: col-resize !important;
+        user-select: none !important;
+      }
+    `;
+    document.head.appendChild(this.styleElement);
+  }
+
+  removeStyles() {
+    if (this.styleElement) {
+      this.styleElement.remove();
+      this.styleElement = null;
+    }
+    if (this.dynamicStyleElement) {
+      this.dynamicStyleElement.remove();
+      this.dynamicStyleElement = null;
+    }
+  }
+
+  // ============ RESIZE LINE ============
+  createResizeLine() {
+    this.resizeLine = document.createElement('div');
+    this.resizeLine.className = 'column-resize-line';
+    document.body.appendChild(this.resizeLine);
+
+    this.widthTooltip = document.createElement('div');
+    this.widthTooltip.className = 'column-width-tooltip';
+    document.body.appendChild(this.widthTooltip);
+  }
+
+  removeResizeLine() {
+    if (this.resizeLine) this.resizeLine.remove();
+    if (this.widthTooltip) this.widthTooltip.remove();
+  }
+
+  showResizeLine(x) {
+    if (this.resizeLine) {
+      this.resizeLine.style.left = `${x}px`;
+      this.resizeLine.classList.add('active');
+    }
+  }
+
+  hideResizeLine() {
+    if (this.resizeLine) this.resizeLine.classList.remove('active');
+  }
+
+  showWidthTooltip(x, y, width) {
+    if (this.widthTooltip) {
+      this.widthTooltip.textContent = `${Math.round(width)}px`;
+      this.widthTooltip.style.left = `${x + 12}px`;
+      this.widthTooltip.style.top = `${y - 25}px`;
+      this.widthTooltip.classList.add('active');
+    }
+  }
+
+  hideWidthTooltip() {
+    if (this.widthTooltip) this.widthTooltip.classList.remove('active');
+  }
+
+  // ============ CONTEXT MENU ============
+  createContextMenu() {
+    this.contextMenu = document.createElement('div');
+    this.contextMenu.className = 'column-resizer-menu';
+    this.contextMenu.innerHTML = `
+      <div class="column-resizer-menu-item" data-action="auto-fit">Auto-fit Column</div>
+      <div class="column-resizer-menu-item" data-action="auto-fit-all">Auto-fit All</div>
+      <div class="column-resizer-menu-sep"></div>
+      <div class="column-resizer-menu-item" data-action="reset">Reset Column</div>
+      <div class="column-resizer-menu-item" data-action="reset-all">Reset All</div>
+    `;
+    document.body.appendChild(this.contextMenu);
+
+    this.contextMenu.addEventListener('click', (e) => {
+      const item = e.target.closest('.column-resizer-menu-item');
+      if (item) {
+        this.handleContextMenuAction(item.dataset.action);
+        this.hideContextMenu();
+      }
+    });
+
+    document.addEventListener('click', () => this.hideContextMenu());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.hideContextMenu();
+    });
+  }
+
+  removeContextMenu() {
+    if (this.contextMenu) this.contextMenu.remove();
+  }
+
+  showContextMenu(x, y, headerCell, columnIndex, table) {
+    this.contextMenuTarget = { headerCell, columnIndex, table };
+    this.contextMenu.style.left = `${Math.min(x, window.innerWidth - 170)}px`;
+    this.contextMenu.style.top = `${Math.min(y, window.innerHeight - 150)}px`;
+    this.contextMenu.classList.add('active');
+  }
+
+  hideContextMenu() {
+    if (this.contextMenu) this.contextMenu.classList.remove('active');
+  }
+
+  handleContextMenuAction(action) {
+    const { headerCell, columnIndex, table } = this.contextMenuTarget || {};
+    if (!headerCell) return;
+
+    const tableId = this.getTableId();
+
+    switch (action) {
+      case 'auto-fit':
+        this.autoFitColumn(table, columnIndex, headerCell, tableId);
+        break;
+      case 'auto-fit-all':
+        this.autoFitAllColumns(table, tableId);
+        break;
+      case 'reset':
+        this.removeColumnWidth(tableId, columnIndex);
+        break;
+      case 'reset-all':
+        this.resetAllColumns(tableId);
+        break;
+    }
+  }
+
+  // ============ AUTO-FIT (optimized - only measures visible rows) ============
+  autoFitColumn(table, columnIndex, headerCell, tableId) {
+    // Measure header
+    const originalWidth = headerCell.style.width;
+    headerCell.style.width = 'auto';
+    headerCell.style.minWidth = 'auto';
+    headerCell.style.maxWidth = 'none';
+    headerCell.style.flex = '0 0 auto';
+
+    let maxWidth = headerCell.scrollWidth;
+
+    // Only measure visible rows (first 50 for performance)
+    const visibleRows = table.querySelectorAll('.TableRow');
+    const rowsToMeasure = Math.min(visibleRows.length, 50);
+
+    for (let i = 0; i < rowsToMeasure; i++) {
+      const cell = visibleRows[i].querySelectorAll('.TableCell')[columnIndex];
+      if (cell) {
+        const origW = cell.style.width;
+        cell.style.width = 'auto';
+        cell.style.minWidth = 'auto';
+        cell.style.maxWidth = 'none';
+        cell.style.flex = '0 0 auto';
+        maxWidth = Math.max(maxWidth, cell.scrollWidth);
+        cell.style.width = origW;
+        cell.style.minWidth = origW;
+        cell.style.maxWidth = origW;
+        cell.style.flex = '';
+      }
+    }
+
+    // Reset header style
+    headerCell.style.width = originalWidth;
+    headerCell.style.minWidth = '';
+    headerCell.style.maxWidth = '';
+    headerCell.style.flex = '';
+
+    // Apply with padding, clamped
+    const newWidth = Math.max(50, Math.min(maxWidth + 16, 400));
+    this.setColumnWidth(tableId, columnIndex, newWidth);
+  }
+
+  autoFitAllColumns(table, tableId) {
+    const headerCells = table.querySelectorAll('.TableHead .TableCell');
+    headerCells.forEach((cell, idx) => {
+      this.autoFitColumn(table, idx, cell, tableId);
+    });
+  }
+
+  resetAllColumns(tableId) {
+    // Remove all widths for this table
+    const keysToDelete = [];
+    this.columnWidths.forEach((_, key) => {
+      if (key.startsWith(tableId)) keysToDelete.push(key);
+    });
+    keysToDelete.forEach(k => this.columnWidths.delete(k));
+    this.saveWidths();
+    this.applyColumnWidthsViaCSS(tableId);
+  }
+
+  // ============ OBSERVER ============
+  startObserving() {
+    this.observer = new MutationObserver((mutations) => {
+      if (this.isResizing) return;
+
+      let shouldUpdate = false;
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1 &&
+              (node.classList?.contains('TableHead') ||
+               node.classList?.contains('Table'))) {
+            shouldUpdate = true;
+            break;
+          }
+        }
+        if (shouldUpdate) break;
+      }
+
+      if (shouldUpdate) {
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+          requestAnimationFrame(() => this.applyToAllTables());
+        }, 150);
+      }
+    });
+
+    this.observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  stopObserving() {
+    if (this.observer) this.observer.disconnect();
+  }
+
+  cleanupHandles() {
+    this.resizeHandles.forEach(h => h.remove());
+    this.resizeHandles.clear();
+    document.querySelectorAll('.column-resizer').forEach(r => r.remove());
+    document.querySelectorAll('[data-col-resizer]').forEach(r => r.remove());
+    document.querySelectorAll('[data-has-resizer]').forEach(el => delete el.dataset.hasResizer);
+  }
+
+  // ============ MAIN LOGIC (OPTIMIZED) ============
+  applyToAllTables() {
+    const tableId = this.getTableId();
+
+    // Apply saved widths via CSS (instant, no iteration)
+    if (tableId !== this.lastTableId) {
+      this.applyColumnWidthsViaCSS(tableId);
+      this.lastTableId = tableId;
+    }
+
+    // Only add resize handles to headers (not all rows)
+    const tableHeads = document.querySelectorAll('.TableHead');
+
+    tableHeads.forEach((tableHead) => {
+      const table = tableHead.closest('.Table');
+      if (!table) return;
+
+      const headerCells = tableHead.querySelectorAll('.TableCell');
+
+      headerCells.forEach((headerCell, columnIndex) => {
+        // Skip checkbox/icon-only columns (no text content)
+        const cellText = (headerCell.textContent || '').trim();
+        if (!cellText || cellText.length < 2) return;
+
+        // Skip if this cell already has OUR resizer
+        if (headerCell.dataset.hasResizer === 'true') return;
+
+        // Remove ANY existing resizers in this cell
+        headerCell.querySelectorAll('.column-resizer, [data-col-resizer]').forEach(r => r.remove());
+
+        // Mark cell as processed
+        headerCell.dataset.hasResizer = 'true';
+
+        const resizer = document.createElement('div');
+        resizer.className = 'column-resizer';
+        resizer.setAttribute('data-col-resizer', columnIndex);
+        resizer.title = 'Drag to resize | Double-click: auto-fit | Right-click: menu';
+
+        const self = this;
+
+        // Double-click: auto-fit
+        resizer.addEventListener('dblclick', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          self.autoFitColumn(table, columnIndex, headerCell, tableId);
+        });
+
+        // Right-click: context menu
+        resizer.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          self.showContextMenu(e.clientX, e.clientY, headerCell, columnIndex, table);
+        });
+
+        // Drag to resize
+        resizer.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.stopPropagation();
+
+          self.isResizing = true;
+          const startX = e.pageX;
+          const startWidth = headerCell.offsetWidth;
+
+          document.body.classList.add('column-resizing');
+          resizer.classList.add('resizing');
+          self.showResizeLine(e.pageX);
+
+          const onMove = (e) => {
+            const newWidth = Math.max(40, Math.min(startWidth + (e.pageX - startX), 600));
+            self.showResizeLine(e.pageX);
+            self.showWidthTooltip(e.pageX, e.pageY, newWidth);
+            // Live preview via CSS
+            self.setColumnWidth(tableId, columnIndex, newWidth);
+          };
+
+          const onUp = () => {
+            self.isResizing = false;
+            document.body.classList.remove('column-resizing');
+            resizer.classList.remove('resizing');
+            self.hideResizeLine();
+            self.hideWidthTooltip();
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          };
+
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+
+        resizer.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, true);
+
+        headerCell.appendChild(resizer);
+        this.resizeHandles.add(resizer);
+      });
+    });
+  }
+}
+
+exports["default"] = ColumnResizerExtension;
+
+/***/ }),
+
+/***/ 2:
+/***/ ((module) => {
+
+module.exports = global.LensExtensions;
+
+/***/ })
+
+/******/  });
+/************************************************************************/
+/******/  var __webpack_module_cache__ = {};
+/******/
+/******/  function __webpack_require__(moduleId) {
+/******/    var cachedModule = __webpack_module_cache__[moduleId];
+/******/    if (cachedModule !== undefined) {
+/******/      return cachedModule.exports;
+/******/    }
+/******/    var module = __webpack_module_cache__[moduleId] = {
+/******/      exports: {}
+/******/    };
+/******/    __webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/    return module.exports;
+/******/  }
+/******/
+/************************************************************************/
+/******/  var __webpack_exports__ = __webpack_require__(1);
+/******/  module.exports = __webpack_exports__;
+/******/
+/******/ })();

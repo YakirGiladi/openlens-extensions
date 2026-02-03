@@ -1,0 +1,18 @@
+{
+  "name": "@openlens/column-resizer",
+  "version": "2.0.0",
+  "description": "Pro column resizing for OpenLens - resize all columns with persistence, auto-fit, and context menu",
+  "renderer": "dist/renderer.js",
+  "engines": {
+    "lens": "^6.0.0"
+  },
+  "keywords": [
+    "openlens",
+    "lens",
+    "extension",
+    "column",
+    "resize",
+    "table"
+  ],
+  "author": "OpenLens Community"
+}
