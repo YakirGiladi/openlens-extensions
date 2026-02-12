@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "outDir": "dist", "module": "CommonJS", "target": "ES2017",
+    "lib": ["ESNext", "DOM"], "moduleResolution": "Node",
+    "strict": true, "skipLibCheck": true, "esModuleInterop": true, "jsx": "react"
+  },
+  "include": ["renderer.tsx"]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@openlens/pod-metrics-columns",
+  "version": "3.0.0",
+  "description": "Adds CPU and Memory usage columns to the Pods table",
+  "renderer": "dist/renderer.js",
+  "engines": {
+    "lens": "^6.0.0"
+  },
+  "keywords": [
+    "openlens",
+    "lens",
+    "extension",
+    "metrics",
+    "cpu",
+    "memory",
+    "pods"
+  ],
+  "author": "OpenLens Community"
+}
