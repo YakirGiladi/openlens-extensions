@@ -6,10 +6,10 @@ A collection of community extensions for OpenLens, installed locally at `~/.k8sl
 
 | Extension | Tarball | Description |
 |-----------|---------|-------------|
-| Column Resizer Pro | [column-resizer.tgz](file:///Users/yakirgiladi/.k8slens/extensions/column-resizer.tgz) | Resizable table columns with persistence |
-| Pod Metrics Columns | [pod-metrics-columns.tgz](file:///Users/yakirgiladi/.k8slens/extensions/pod-metrics-columns.tgz) | CPU/Memory usage columns in Pods table |
-| Resource Tab Search | [resource-tab-search.tgz](file:///Users/yakirgiladi/.k8slens/extensions/resource-tab-search.tgz) | Search/filter sidebar resources |
-| Keyboard Nav | [keyboard-nav.tgz](file:///Users/yakirgiladi/.k8slens/extensions/keyboard-nav.tgz) | Keyboard navigation for table views |
+| Column Resizer Pro | [column-resizer.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/column-resizer.tgz) | Resizable table columns with persistence |
+| Pod Metrics Columns | [pod-metrics-columns.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/pod-metrics-columns.tgz) | CPU/Memory usage columns in Pods table |
+| Resource Tab Search | [resource-tab-search.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/resource-tab-search.tgz) | Search/filter sidebar resources |
+| Keyboard Nav | [keyboard-nav.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/keyboard-nav.tgz) | Keyboard navigation for table views |
 
 ## Installation
 
