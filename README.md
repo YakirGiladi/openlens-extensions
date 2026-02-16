@@ -1,23 +1,22 @@
 # OpenLens Extensions
 
-A collection of community extensions for OpenLens.
+A collection of community extensions for OpenLens, installed locally at `~/.k8slens/extensions/`.
 
-## Downloads
+## Installed Extensions
 
-| Extension | Download |
-|-----------|----------|
-| Column Resizer Pro | [column-resizer.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/column-resizer.tgz) |
-| Pod Metrics Columns | [pod-metrics-columns.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/pod-metrics-columns.tgz) |
-| Resource Tab Search | [resource-tab-search.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/resource-tab-search.tgz) |
-| Keyboard Nav | [keyboard-nav.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/keyboard-nav.tgz) |
+| Extension | Tarball | Description |
+|-----------|---------|-------------|
+| Column Resizer Pro | [column-resizer.tgz](./column-resizer.tgz) | Resizable table columns with persistence |
+| Pod Metrics Columns | [pod-metrics-columns.tgz](./pod-metrics-columns.tgz) | CPU/Memory usage columns in Pods table |
+| Resource Tab Search | [resource-tab-search.tgz](./resource-tab-search.tgz) | Search/filter sidebar resources |
+| Keyboard Nav | [keyboard-nav.tgz](./keyboard-nav.tgz) | Keyboard navigation for table views |
 
 ## Installation
 
-1. Download the `.tgz` file for the extension you want
-2. Open OpenLens
-3. Go to **File > Extensions** (Mac: **OpenLens > Extensions**)
-4. Drag the `.tgz` file into the extensions window, or click "Install" and select the file
-5. Restart OpenLens
+1. Open OpenLens
+2. Go to **File > Extensions** (Mac: **OpenLens > Extensions**)
+3. Drag the `.tgz` file into the extensions window, or click "Install" and select the file
+4. Restart OpenLens
 
 ## Compatibility
 
@@ -36,8 +35,6 @@ A collection of community extensions for OpenLens.
 - **Visual feedback** — Resize indicators, tooltips showing exact width, column highlighting
 - **Per-view memory** — Different tables remember their own column widths
 
-**[Download column-resizer.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/column-resizer.tgz)**
-
 ---
 
 ## Pod Metrics Columns
@@ -50,8 +47,6 @@ Adds **CPU** and **Memory** usage columns to the Pods table, providing real-time
 - Automatically detects navigation to/from the Pods page and updates accordingly
 - Requires **metrics-server** installed on the cluster (`kubectl top` must work)
 
-**[Download pod-metrics-columns.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/pod-metrics-columns.tgz)**
-
 ---
 
 ## Resource Tab Search
@@ -63,8 +58,6 @@ Adds a **search/filter input** to the sidebar, letting you quickly find resource
 - Restores the original sidebar state when the filter is cleared
 - Persists across sidebar re-renders via `MutationObserver`
 - Lightweight — zero runtime dependencies, ~5 KB bundled
-
-**[Download resource-tab-search.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/resource-tab-search.tgz)**
 
 ---
 
@@ -93,8 +86,6 @@ Adds a **search/filter input** to the sidebar, letting you quickly find resource
 | `PageUp` | Jump 10 rows up |
 
 Keyboard shortcuts are disabled when focus is inside an input field, search bar, or dialog.
-
-**[Download keyboard-nav.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/keyboard-nav.tgz)**
 
 ---
 
