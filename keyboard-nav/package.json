@@ -1,0 +1,7 @@
+{
+  "name": "keyboard-nav",
+  "version": "1.0.0",
+  "description": "Keyboard navigation (Up/Down/Enter/Escape) for OpenLens table views",
+  "renderer": "dist/renderer.js",
+  "engines": { "lens": "^6.0.0" }
+}
