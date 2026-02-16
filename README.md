@@ -9,6 +9,7 @@ A collection of community extensions for OpenLens.
 | Column Resizer Pro | [column-resizer.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/column-resizer.tgz) |
 | Pod Metrics Columns | [pod-metrics-columns.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/pod-metrics-columns.tgz) |
 | Resource Tab Search | [resource-tab-search.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/resource-tab-search.tgz) |
+| Keyboard Nav | [keyboard-nav.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/keyboard-nav.tgz) |
 
 ## Installation
 
@@ -64,6 +65,36 @@ Adds a **search/filter input** to the sidebar, letting you quickly find resource
 - Lightweight — zero runtime dependencies, ~5 KB bundled
 
 **[Download resource-tab-search.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/resource-tab-search.tgz)**
+
+---
+
+## Keyboard Nav
+
+**Navigate resource tables with your keyboard.** Browse Pods, Deployments, Services and any other table view without touching the mouse.
+
+- **Arrow key navigation** — `ArrowDown` / `ArrowUp` to move between rows
+- **Vim-style keys** — `j` / `k` for power users
+- **Selection memory** — Remembers your last selected row per view, for both keyboard and mouse
+- **Mouse-aware** — Click a row to set the selection anchor, then continue with keyboard
+- **Smart restore** — Switching between views (e.g. Pods -> Services -> Pods) restores your previous selection by matching the resource name
+- **Visual highlight** — Selected row gets a blue outline with a left accent bar
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `ArrowDown` / `j` | Select next row |
+| `ArrowUp` / `k` | Select previous row |
+| `Enter` | Open (click) the selected row |
+| `Escape` | Clear selection |
+| `Home` | Jump to first row |
+| `End` | Jump to last row |
+| `PageDown` | Jump 10 rows down |
+| `PageUp` | Jump 10 rows up |
+
+Keyboard shortcuts are disabled when focus is inside an input field, search bar, or dialog.
+
+**[Download keyboard-nav.tgz](https://github.com/YakirGiladi/openlens-extensions/raw/main/keyboard-nav.tgz)**
 
 ---
 
